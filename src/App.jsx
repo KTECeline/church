@@ -43,7 +43,7 @@ export default function App() {
       <div className="login-card">
         <div className="login-logo">✝</div>
         <h1 className="login-title">GSLC 父母节嘉年华</h1>
-        <p className="login-sub">Parents' Day Carnival 2025</p>
+        <p className="login-sub">Parents' Day Carnival 2026</p>
         {!pinTarget ? (
           <>
             <p className="login-label">Select your role</p>
