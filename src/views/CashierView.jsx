@@ -11,8 +11,8 @@ export default function CashierView({ onExit, booths }) {
   const [quilts, setQuilts] = useState([])
   const [foundOrder, setFoundOrder] = useState(null)
   const [amountPaid, setAmountPaid] = useState('')
-  const [extraAmount, setExtraAmount] = useState('')
   const [payMethod, setPayMethod] = useState('cash')
+  const [donateChange, setDonateChange] = useState(false)
   const [payError, setPayError] = useState('')
   const [paySuccess, setPaySuccess] = useState(false)
   const [showAddBooth, setShowAddBooth] = useState(false)
@@ -41,6 +41,7 @@ export default function CashierView({ onExit, booths }) {
   const selectOrder = o => {
     setFoundOrder(o)
     setAmountPaid(o.total.toFixed(2))
+    setDonateChange(false)
     setPayError('')
     setPaySuccess(false)
   }
@@ -48,7 +49,7 @@ export default function CashierView({ onExit, booths }) {
   const confirmPayment = async () => {
     if (!foundOrder) return
     const paid = parseFloat(amountPaid) || 0
-    const extra = parseFloat(extraAmount) || 0
+    const extra = donateChange ? Math.max(0, paid - foundOrder.total) : 0
     if (paid < foundOrder.total) { setPayError('Amount paid is less than total due'); return }
     await update(ref(db, `orders/${foundOrder.id}`), { status: 'paid', amountPaid: paid, extra, payMethod, paidAt: Date.now() })
     await push(ref(db, 'payments'), {
@@ -59,7 +60,7 @@ export default function CashierView({ onExit, booths }) {
     setPaySuccess(true)
     setFoundOrder(null)
     setAmountPaid('')
-    setExtraAmount('')
+    setDonateChange(false)
     setPayMethod('cash')
   }
 
@@ -98,9 +99,7 @@ export default function CashierView({ onExit, booths }) {
   const badgeClass  = { pending: 'badge-pending', paid: 'badge-paid', done: 'badge-done', cancelled: 'badge-cancelled' }
   const statusLabel = { pending: 'Pending', paid: 'Paid', done: 'Done', cancelled: 'Cancelled' }
 
-  const change = foundOrder && amountPaid
-    ? parseFloat(amountPaid) - foundOrder.total - (parseFloat(extraAmount) || 0)
-    : 0
+  const change = foundOrder && amountPaid ? parseFloat(amountPaid) - foundOrder.total : 0
 
   return (
     <div className="view-wrap">
@@ -170,7 +169,7 @@ export default function CashierView({ onExit, booths }) {
               </div>
             ) : (
               <div className="pay-panel">
-                <button className="pay-back-btn" onClick={() => { setFoundOrder(null); setAmountPaid(''); setExtraAmount(''); setPayError('') }}>
+                <button className="pay-back-btn" onClick={() => { setFoundOrder(null); setAmountPaid(''); setDonateChange(false); setPayError('') }}>
                   ← back
                 </button>
 
@@ -219,13 +218,26 @@ export default function CashierView({ onExit, booths }) {
                 </div>
 
                 {change > 0 && (
-                  <div className="change-chip">Change: RM {change.toFixed(2)}</div>
+                  <div className="change-decision">
+                    <div className="change-decision-label">
+                      RM {change.toFixed(2)} overpaid — what to do?
+                    </div>
+                    <div className="change-decision-btns">
+                      <button
+                        className={`change-opt${!donateChange ? ' change-opt--on' : ''}`}
+                        onClick={() => setDonateChange(false)}
+                      >
+                        💵 Give back RM {change.toFixed(2)}
+                      </button>
+                      <button
+                        className={`change-opt${donateChange ? ' change-opt--donate' : ''}`}
+                        onClick={() => setDonateChange(true)}
+                      >
+                        🎁 Donate RM {change.toFixed(2)}
+                      </button>
+                    </div>
+                  </div>
                 )}
-
-                <div className="form-group">
-                  <label>Extra / donation (RM) — optional</label>
-                  <input type="number" step="0.50" value={extraAmount} onChange={e => setExtraAmount(e.target.value)} placeholder="0.00" />
-                </div>
 
                 {payError && <p className="error-msg">{payError}</p>}
 
@@ -273,7 +285,7 @@ export default function CashierView({ onExit, booths }) {
                   RM {o.total.toFixed(2)}
                   {o.amountPaid && o.amountPaid > o.total ? ` (paid RM ${o.amountPaid.toFixed(2)})` : ''}
                 </div>
-                {o.extra > 0 && <div className="order-donation">+RM {o.extra.toFixed(2)} donation</div>}
+                {o.extra > 0 && <div className="order-donation">+RM {o.extra.toFixed(2)} extra</div>}
               </div>
             ))}
           </div>
